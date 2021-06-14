@@ -1,10 +1,11 @@
 package ru.skillbranch.devintensive.ui.profile
 
-import android.graphics.ColorFilter
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffColorFilter
+import android.graphics.*
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.TypedValue
 import android.view.View
 import android.widget.EditText
 import android.widget.TextView
@@ -23,8 +24,11 @@ import kotlinx.android.synthetic.main.activity_profile.tv_rating
 import kotlinx.android.synthetic.main.activity_profile.tv_respect
 import kotlinx.android.synthetic.main.activity_profile.wr_about
 import kotlinx.android.synthetic.main.activity_profile.btn_switch_theme
+import kotlinx.android.synthetic.main.activity_profile_constraint.*
 import ru.skillbranch.devintensive.R
 import ru.skillbranch.devintensive.models.Profile
+import ru.skillbranch.devintensive.ui.custom.CircleImageView
+import ru.skillbranch.devintensive.utils.Utils
 import ru.skillbranch.devintensive.viewmodels.ProfileViewModel
 
 class ProfileActivity : AppCompatActivity() {
@@ -38,6 +42,7 @@ class ProfileActivity : AppCompatActivity() {
     lateinit var viewFields: Map<String, TextView>
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(R.style.AppTheme)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_profile)
         initViews(savedInstanceState)
@@ -62,6 +67,15 @@ class ProfileActivity : AppCompatActivity() {
         profile.toMap().also {
             for ((k, v) in viewFields) {
                 v.text = it[k].toString()
+            }
+        }
+
+        val circleImageView: CircleImageView = findViewById(R.id.iv_avatar)
+        if (circleImageView.drawable == null) {
+            if (Utils.toInitials(et_first_name.text.toString(), et_last_name.text.toString()) == null){
+                circleImageView.setImageResource(R.drawable.avatar_default)
+            } else {
+                drawInitials()
             }
         }
     }
@@ -90,6 +104,27 @@ class ProfileActivity : AppCompatActivity() {
         btn_switch_theme.setOnClickListener {
             viewModel.switchTheme()
         }
+
+        val textWatcher = object : TextWatcher {
+
+            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
+                if (!Utils.verification(et_repository.text.toString())) {
+                    wr_repository.error = "Невалидный адрес репозитория"
+                    wr_repository.isErrorEnabled = true
+                } else {
+                    wr_repository.error = null
+                    wr_repository.isErrorEnabled = false
+                }
+            }
+
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+            }
+
+            override fun afterTextChanged(s: Editable) {
+
+            }
+        }
+        et_repository.addTextChangedListener(textWatcher)
     }
 
     private fun showCurrentMode(isEdit: Boolean) {
@@ -136,5 +171,44 @@ class ProfileActivity : AppCompatActivity() {
         ).apply { 
             viewModel.saveProfileData(this)
         }
+    }
+
+    private fun drawInitials() {
+        val circleImageView: CircleImageView = findViewById(R.id.iv_avatar)
+        val size = resources.getDimension(R.dimen.avatar_round_size).toInt()
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        circleImageView.setImageBitmap(bitmap)
+
+        val text = Utils.toInitials(Utils.transliteration(et_first_name.text.toString()), Utils.transliteration(et_last_name.text.toString())) ?: ""
+        val mPaint = Paint()
+        val mTextBoundRect = Rect()
+
+        val width = resources.getDimension(R.dimen.avatar_round_size)
+        val height = resources.getDimension(R.dimen.avatar_round_size)
+
+        val centerX = width / 2
+        val centerY = height / 2
+
+        val value = TypedValue()
+        theme.resolveAttribute(R.attr.colorAccent, value, true)
+        canvas.drawColor(value.data)
+
+        mPaint.color = Color.WHITE
+        mPaint.textSize = resources.getDimension(R.dimen.avatar_initials_48)
+
+        mPaint.getTextBounds(text, 0, text.length, mTextBoundRect)
+
+        val mTextWidth = mPaint.measureText(text)
+        val mTextHeight = mTextBoundRect.height()
+
+        canvas.drawText(
+            text,
+            centerX - (mTextWidth / 2f),
+            centerY + (mTextHeight / 2f),
+            mPaint
+        )
+
+        circleImageView.setImageBitmap(bitmap)
     }
 }
